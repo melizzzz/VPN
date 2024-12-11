@@ -1,91 +1,35 @@
 import socket
-from crypt import encrypt, decrypt, generate_subkey
-from config import SERVER_IP, SERVER_PORT, MAX_CONNECTIONS
 
-
+# Adresse IP pour le serveur
+HOST = '127.0.0.1'  # Adresse localhost pour tests locaux
+PORT = 0  # Les sockets bruts ignorent les ports
 
 def start_server():
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # af_inet6 pour ipv6 et sock_dgram pour udp
-    server_socket.bind((SERVER_IP, SERVER_PORT)) #associe le server au port et a l'ip, le server est à l'écoute
-    server_socket.listen(MAX_CONNECTIONS)
+    try:
+        # Créer un socket brut
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
+        server_socket.bind((HOST, PORT))
 
-    print(f'Démarrage du serveur sur {SERVER_IP}:{SERVER_PORT}')
+        # Configurer pour recevoir tous les paquets
+        server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 
-    while True:
+        print(f"Serveur en écoute sur {HOST}")
 
-        try:
-        #client socket gere une connexion avec un client
-            #client address contient lip et le port du client
-            client_socket, client_address = server_socket.accept()
-            print(f'Connexion acceptée - {client_address}')
+        while True:
+            # Recevoir des données
+            data, addr = server_socket.recvfrom(65535)  # Taille max d'un paquet IP
 
-            message = client_socket.recv(1024).decode('utf-8')
-            print(f'Message reçu {message}')
+            print(f"Reçu un paquet de {addr}:")
+            print(f"Paquet brut : {data}")
+            ip_header = data[:20]  # En-tête IP (20 octets)
+            payload = data[20:]    # Payload
+            print(f"En-tête IP : {ip_header}")
+            print(f"Payload : {payload.decode(errors='ignore')}")
 
-            response = "Message reçu par le serveur"
-            client_socket.send(response.encode('utf-8'))
-
-        except Exception as e :
-            print(f"Erreur : {e}")
-
-        finally:
-            client_socket.close()
-
-
-
-
+    except PermissionError:
+        print("Erreur : Les sockets bruts nécessitent des privilèges administrateur.")
+    except Exception as e:
+        print(f"Erreur inattendue : {e}")
 
 if __name__ == "__main__":
     start_server()
-
-    """import socket
-import config
-
-# Définir le pool d'adresses IP
-IP_POOL = [f"10.8.0.{i}" for i in range(2, 51)]
-allocated_ips = []
-
-def assign_ip():
-    for ip in IP_POOL:
-        if ip not in allocated_ips:
-            allocated_ips.append(ip)
-            return ip
-    return None
-
-def start_server():
-    SERVER_IP = config.SERVER_IP  # Écouter sur toutes les interfaces
-    SERVER_PORT = config.SERVER_PORT
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((SERVER_IP, SERVER_PORT))
-    server_socket.listen(5)
-    print(f"Serveur démarré sur {SERVER_IP}:{SERVER_PORT}")
-
-    while True:
-        client_socket, client_address = server_socket.accept()
-        print(f"Connexion acceptée - {client_address}")
-
-        client_ip = assign_ip()
-        if client_ip is None:
-            client_socket.send("NO_IP".encode('utf-8'))
-            client_socket.close()
-            print(f"Pas d'IP disponible pour {client_address}")
-            continue
-
-        # Envoyer l'IP au client
-        client_socket.send(client_ip.encode('utf-8'))
-        print(f"IP {client_ip} attribuée à {client_address}")
-
-        # Recevoir un message du client (optionnel)
-        try:
-            message = client_socket.recv(1024).decode('utf-8')
-            print(f"Message du client {client_ip}: {message}")
-            response = "Message reçu par le serveur"
-            client_socket.send(response.encode('utf-8'))
-        except Exception as e:
-            print(f"Erreur lors de la communication avec {client_ip} : {e}")
-
-        client_socket.close()
-
-if __name__ == "__main__":
-    start_server()
-"""
