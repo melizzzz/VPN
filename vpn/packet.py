@@ -1,36 +1,33 @@
-import struct
 import socket
 
-def build_ip_header(src_ip, dst_ip):
-    ip_header = struct.pack(
-        '!BBHHHBBH4s4s',  # Format des champs
-        69,               # Version (4) + longueur de l'en-tête (5 mots de 32 bits)
-        0,                # Type of Service
-        40,               # Longueur totale
-        54321,            # ID
-        0,                # Flags + Fragment Offset
-        64,               # TTL
-        socket.IPPROTO_TCP,  # Protocole TCP
-        0,                # Checksum (doit être recalculée si nécessaire)
-        socket.inet_aton(src_ip),  # IP source
-        socket.inet_aton(dst_ip)   # IP destination
-    )
-    return ip_header
+# Adresse et port du serveur
+HOST = '127.0.0.1'  # Adresse localhost
+PORT = 443          # Doit correspondre au port du serveur
 
-src_ip = '127.0.0.1'  # Adresse source (localhost)
-dst_ip = '127.0.0.1'  # Adresse destination (localhost)
+def start_tcp_client():
+    try:
+        # Créer un socket TCP
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        
+        # Connecter au serveur
+        client_socket.connect((HOST, PORT))
+        print(f"Connecté au serveur {HOST}:{PORT}")
+        
+        # Envoyer des données
+        message = "Hello, serveur!"
+        client_socket.sendall(message.encode())
+        print(f"Message envoyé : {message}")
+        
+        # Recevoir une réponse (optionnel)
+        # data = client_socket.recv(1024)
+        # print(f"Réponse du serveur : {data.decode()}")
+        
+        # Fermer la connexion
+        client_socket.close()
+        print("Connexion fermée.")
+        
+    except Exception as e:
+        print(f"Erreur inattendue : {e}")
 
-# Construire le paquet
-ip_header = build_ip_header(src_ip, dst_ip)
-payload = b'message'
-packet = ip_header + payload
-
-# Créer le socket brut
-try:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
-    sock.sendto(packet, (dst_ip, 0))  # Envoyer vers localhost
-    print("Paquet envoyé avec succès.")
-except PermissionError:
-    print("Erreur : Les sockets bruts nécessitent des privilèges administrateur.")
-except Exception as e:
-    print(f"Erreur inattendue : {e}")
+if __name__ == "__main__":
+    start_tcp_client()
