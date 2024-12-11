@@ -8,7 +8,8 @@ def generate_iv(bloc_size):
 
 def generate_s_box():
     s_box = list(range(256))
-    return random.shuffle(s_box)
+    random.shuffle(s_box)
+    return s_box
 
 
 def sub_bloc(bloc, s_box):
@@ -48,7 +49,6 @@ def encrypt(bloc, key, s_box, nb_keys):
         bloc = sub_bloc(bloc, s_box)
         bloc, schema= permute_bloc(bloc)
         bloc = [b ^ key[i % len(key)] for i, b in enumerate(bloc)]
-
     return bloc, iv, schema
 
 
