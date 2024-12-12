@@ -1,7 +1,7 @@
 import socket
 
 # Adresse et port pour le serveur
-HOST = '0.0.0.0'  # Écoute sur toutes les interfaces disponibles
+HOST = '127.0.0.1'  # Écoute sur toutes les interfaces disponibles
 PORT = 443      # Choisis un port libre
 
 def start_tcp_server():

@@ -20,7 +20,7 @@ def permute_bloc(bloc):
     #Permute un bloc avec un schema généré aléatoirement
     schema=[]
     while len(schema) < len(bloc):
-        lettre = int.from_bytes(os.urandom(len(bloc)) % len(bloc))
+        lettre = int.from_bytes(os.urandom(len(bloc))) % len(bloc)
         if lettre not in schema :
             schema.append(lettre)
     bloc_perm = [bloc[i] for i in schema]
@@ -36,7 +36,7 @@ def permute_bloc_with_schema(bloc,schema):
 def generate_subkey(key, nb_key):
     subkeys = []
     for i in range (nb_key):
-        subkeys.append(bytes([ (b + i) % 256 for b in key]))
+        subkeys.append(bytes([ (ord(b) + i) % 256 for b in key]))
     return subkeys
 
 
@@ -62,4 +62,4 @@ def decrypt(encrypted_bloc, iv, key, s_box, schema, nb_subkeys):
         encrypted_bloc = [encrypted_bloc[k] for k in reverse_s_box]
 
     bloc = [b ^ iv[i] for i, b in enumerate(encrypted_bloc)]
-    return bloc
+    return bloc # type: ignore
