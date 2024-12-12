@@ -2,6 +2,9 @@ import socket
 import struct
 import crypt
 import packet
+from cryptography.hazmat.primitives.hmac import HMAC
+from cryptography.hazmat.primitives.hashes import SHA256
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from config import SERVER_IP, SERVER_PORT, ENCRYPTION_KEY
 
 def start_client():
@@ -19,7 +22,17 @@ def start_client():
 
         encrypted_msg, iv, schema = crypt.encrypt(payload, key, s_box, nb_keys)
         encrypted_msg_bytes = bytes(encrypted_msg)
-        client_socket.send(encrypted_msg_bytes)
+
+        cipher = Cipher(algorithms.AES(ENCRYPTION_KEY), modes.CBC(iv))
+        encryptor = cipher.encryptor()
+        encrypted_data = encryptor.update(iv + bytes(schema)) + encryptor.finalize()
+
+        hmac =HMAC(ENCRYPTION_KEY.encode('utf-8'), SHA256())
+        hmac.update(encrypted_data + bytes(encrypted_msg))
+        final_encryption = hmac.finalize()
+        
+        packet = final_encryption + encrypted_msg_bytes
+        client_socket.send(packet)
 
         response = client_socket.recv(1024).decode('utf-8')
         print(f"Réponse du serveur : {response}")
