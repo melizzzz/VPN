@@ -1,41 +1,53 @@
 import socket
-import struct
-import crypt
-import packet
-from cryptography.hazmat.primitives.hmac import HMAC
-from cryptography.hazmat.primitives.hashes import SHA256
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+import crypt_utils
+import network_utils
 from config import SERVER_IP, SERVER_PORT, ENCRYPTION_KEY
+import packet
+
 
 def start_client():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         client_socket.connect((SERVER_IP, SERVER_PORT))
         message = input("Please enter your message: ")
-        message_bytes = message.encode('utf-8')
-        key = ENCRYPTION_KEY
-        s_box = crypt.generate_s_box()
+        key = ENCRYPTION_KEY.encode("utf-8")
+        s_box = crypt_utils.generate_s_box()
         nb_keys = 6
 
-        header = packet.build_ip_header("127.0.0.1", "127.0.0.1")
-        payload = header + message_bytes
+        ip_header = packet.build_ip_header("127.0.0.1", "127.0.0.1")
+        #tcp_header = packet
+        payload = ip_header + message.encode("utf-8")
 
-        encrypted_msg, iv, schema = crypt.encrypt(payload, key, s_box, nb_keys)
-        encrypted_msg_bytes = bytes(encrypted_msg)
+        # On suppose que crypt_utils.encrypt renvoie maintenant :
+        # encrypted_msg, iv, schemas
+        # schemas est une liste de schémas, chaque schéma étant une liste d'entiers
+        encrypted_msg, iv, schemas = crypt_utils.encrypt(payload, key, s_box, nb_keys)
 
-        cipher = Cipher(algorithms.AES(ENCRYPTION_KEY), modes.CBC(iv))
-        encryptor = cipher.encryptor()
-        encrypted_data = encryptor.update(iv + bytes(schema)) + encryptor.finalize()
 
-        hmac =HMAC(ENCRYPTION_KEY.encode('utf-8'), SHA256())
-        hmac.update(encrypted_data + bytes(encrypted_msg))
-        final_encryption = hmac.finalize()
-        
-        packet = final_encryption + encrypted_msg_bytes
-        client_socket.send(packet)
+        # Préparer les données des schémas
+        # schemas_data : [2 octets: nombre de schémas] + Pour chaque schéma : [2 octets longueur] + schéma en bytes
+        schemas_count = len(schemas)
+        schemas_data = schemas_count.to_bytes(2, 'big')
+        for sc in schemas:
+            # Chaque schéma est une liste d'entiers
+            # On s'assure que sc est une liste d'entiers [0..255], compatible avec bytes(sc)
+            schemas_data += len(sc).to_bytes(2, 'big') + bytes(sc)
 
-        response = client_socket.recv(1024).decode('utf-8')
-        print(f"Réponse du serveur : {response}")
+        # Construire le message final :
+        # [2 octets len(iv)] + iv + [schemas_data] + [2 octets len(s_box)] + s_box + encrypted_msg
+        final_msg = network_utils.encrypt_message(
+            ENCRYPTION_KEY,
+            len(iv).to_bytes(2, "big")
+            + iv
+            + schemas_data
+            + len(s_box).to_bytes(2, "big")
+            + bytes(s_box)
+            + bytes(encrypted_msg)
+        )
+
+        client_socket.send(final_msg)
+        response = client_socket.recv(1024)
+        print(f"Réponse du serveur : {network_utils.decrypt_message(ENCRYPTION_KEY, response)}")
 
     except Exception as e:
         print(f"Une erreur est survenue: {e}")
