@@ -14,8 +14,6 @@ ENCRYPTION_KEY  = "-f6wE-M2MfkpX3rmibrQwswqr_3UaUZuQlELBzNqrTc="
 #if ENCRYPTION_KEY is None :
   #  raise ValueError("Clé de chiffrement non définie")
 #print(ENCRYPTION_KEY)
-ENCRYPTION_ALGORITHM = 'AES-256-CBC'
-
 LOGGING_LEVEL = 'DEBUG'
 
 MAX_CONNECTIONS = 50

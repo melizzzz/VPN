@@ -4,20 +4,32 @@ import network_utils
 from config import SERVER_IP, SERVER_PORT, ENCRYPTION_KEY
 import packet
 
+def build_payload(src_ip, src_port):
+
+        dest_ip = '142.250.185.174' #input("Vers quelle IP souhaitez vous envoyer vos données ?: ")
+        dest_port = 80 #int(input("Quel est le port de ce dernier ?: "))
+        #message = input("Please enter your message: ")
+        message = input("hello")
+
+
+        
+        key = ENCRYPTION_KEY.encode("utf-8")
+        s_box = crypt_utils.generate_s_box()
+        nb_keys = 6
+        
+        ip_header = packet.build_ip_header(src_ip, dest_ip)
+        tcp_header = packet.build_tcp_header(src_port, dest_port)
+        return key, s_box, nb_keys, ip_header + tcp_header + message.encode('utf-8')
+
+
+
 
 def start_client():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         client_socket.connect((SERVER_IP, SERVER_PORT))
-        message = input("Please enter your message: ")
-        key = ENCRYPTION_KEY.encode("utf-8")
-        s_box = crypt_utils.generate_s_box()
-        nb_keys = 6
-
-        ip_header = packet.build_ip_header("127.0.0.1", "127.0.0.1")
-        #tcp_header = packet
-        payload = ip_header + message.encode("utf-8")
-
+        src_ip, src_port = client_socket.getsockname()
+        key, s_box, nb_keys, payload = build_payload(src_ip, src_port)
         # On suppose que crypt_utils.encrypt renvoie maintenant :
         # encrypted_msg, iv, schemas
         # schemas est une liste de schémas, chaque schéma étant une liste d'entiers
@@ -47,7 +59,17 @@ def start_client():
 
         client_socket.send(final_msg)
         response = client_socket.recv(1024)
-        print(f"Réponse du serveur : {network_utils.decrypt_message(ENCRYPTION_KEY, response)}")
+        print(f"Réponse du serveur : {network_utils.decrypt_message(ENCRYPTION_KEY, response)}")        
+        # Déchiffrer la réponse
+        decrypted_response = network_utils.decrypt_message(ENCRYPTION_KEY, response)
+        iv, schemas, s_box, payload = network_utils.extract_all_components(decrypted_response)
+
+        text_data = bytes(payload[40:])  # Ignorer les headers IP et TCP
+        try:
+            print(f"Réponse déchiffrée : {text_data.decode('utf-8')}")
+        except UnicodeDecodeError:
+            print("Impossible de décoder la réponse.")
+
 
     except Exception as e:
         print(f"Une erreur est survenue: {e}")
