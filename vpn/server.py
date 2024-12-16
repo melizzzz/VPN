@@ -15,6 +15,7 @@ def forward_to_target(dest_ip, dest_port, message):
         print(f"Erreur lors du forwarding : {e}")
         return None
     
+    
 def extract_ip_and_header(decrypted_msg):
     tcp_header_size = 20
     ip_header_size = 20
@@ -26,10 +27,11 @@ def extract_ip_and_header(decrypted_msg):
 
     dest_ip = socket.inet_ntoa(ip_header[16:20])  # Destination IP
     dest_port = int.from_bytes(tcp_header[2:4], "big")  # Destination Port
+
     
     #debbug
     print(f"Destination IP: {dest_ip}, Destination Port: {dest_port}")
-    print(f'le message recu est : {decrypted_msg[header_size:]}')
+    print(f'le message recu par le client : {decrypted_msg[header_size:]}')
     return dest_ip, dest_port, decrypted_msg[header_size:]
 
 
@@ -62,24 +64,24 @@ def start_tcp_server():
                 decrypted_msg = crypt_utils.decrypt(payload, iv, ENCRYPTION_KEY.encode("utf-8"), s_box, schemas, 6)
 
                 dest_ip, dest_port, text_data = extract_ip_and_header(decrypted_msg)
+                
 
                 # Forwarder les données vers la cible
                 response = forward_to_target(dest_ip, dest_port, text_data)
-                print(response)
+                print("voici la reponse de la destination \n", response)
+
                 if response is None:
                     print("Erreur lors du forwarding")
                     break
 
                 # Chiffrer la réponse avant de la renvoyer au client
-                encrypted_response, iv, schemas = crypt_utils.encrypt(
-                    response, ENCRYPTION_KEY.encode("utf-8"), s_box, len(schemas)
-                )
-
+                encrypted_response, iv, schemas = crypt_utils.encrypt( response, ENCRYPTION_KEY.encode("utf-8"), s_box, 6 )
+                print("voici la reponse chiffrée", encrypted_response)
+                print("processus de cryptage commence")
                 # Construire le message final
                 schemas_count = len(schemas)
                 schemas_data = schemas_count.to_bytes(2, 'big')
                 for sc in schemas:
-                    print(f"Schéma en cours de traitement : {sc}")
                     schemas_data += len(sc).to_bytes(2, 'big') + bytes([b if 0 <= b < 256 else 0 for b in sc])
 
                 final_msg = network_utils.encrypt_message(
@@ -93,6 +95,8 @@ def start_tcp_server():
                 )
 
                 # Envoyer au client
+                print("message final")
+                print(final_msg)
                 conn.send(final_msg)
                 try:
                     text_message = text_data.decode('utf-8')
@@ -101,4 +105,7 @@ def start_tcp_server():
                     print("Impossible de décoder le message en UTF-8.")
 
 if __name__ == "__main__":
-    start_tcp_server()
+    try:
+        start_tcp_server()
+    except KeyboardInterrupt:
+        print("Serveur arrêté manuellement.")

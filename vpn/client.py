@@ -12,9 +12,9 @@ def build_payload(src_ip, src_port):
         message = (
     "GET /search?q=python HTTP/1.1\r\n"
     "Host: www.google.com\r\n"
+    "Range: bytes=0-999"
     "Connection: close\r\n\r\n"
 )
-        
         key = ENCRYPTION_KEY.encode("utf-8")
         s_box = crypt_utils.generate_s_box()
         nb_keys = 6
@@ -61,15 +61,16 @@ def start_client():
         )
 
         client_socket.send(final_msg)
-        response = client_socket.recv(4096)
- 
+        response = client_socket.recv(4096) 
+        print(f"Taille de la réponse reçue : {len(response)}")
+        print(f"Réponse reçue : {response}")
+      
 
         decrypted_response = network_utils.decrypt_message(ENCRYPTION_KEY, response)
-        print(decrypted_response)
+        
         iv, schemas, s_box, payload = network_utils.extract_all_components(decrypted_response)
+        text_data = bytes(crypt_utils.decrypt(payload, iv, ENCRYPTION_KEY.encode("utf-8"), s_box, schemas, 6))  # Ignorer les headers IP et TCP
 
-        text_data = bytes(payload[40:])  # Ignorer les headers IP et TCP
-        print(f'text_data en bas')
         try:
             print(f"Réponse déchiffrée : {text_data.decode('utf-8')}")
         except UnicodeDecodeError:
