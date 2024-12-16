@@ -9,9 +9,11 @@ def build_payload(src_ip, src_port):
         dest_ip = '142.250.185.174' #input("Vers quelle IP souhaitez vous envoyer vos données ?: ")
         dest_port = 80 #int(input("Quel est le port de ce dernier ?: "))
         #message = input("Please enter your message: ")
-        message = input("hello")
-
-
+        message = (
+    "GET /search?q=python HTTP/1.1\r\n"
+    "Host: www.google.com\r\n"
+    "Connection: close\r\n\r\n"
+)
         
         key = ENCRYPTION_KEY.encode("utf-8")
         s_box = crypt_utils.generate_s_box()
@@ -19,7 +21,8 @@ def build_payload(src_ip, src_port):
         
         ip_header = packet.build_ip_header(src_ip, dest_ip)
         tcp_header = packet.build_tcp_header(src_port, dest_port)
-        return key, s_box, nb_keys, ip_header + tcp_header + message.encode('utf-8')
+
+        return key, s_box, nb_keys, tcp_header + ip_header  + message.encode('utf-8')
 
 
 
@@ -58,13 +61,15 @@ def start_client():
         )
 
         client_socket.send(final_msg)
-        response = client_socket.recv(1024)
-        print(f"Réponse du serveur : {network_utils.decrypt_message(ENCRYPTION_KEY, response)}")        
-        # Déchiffrer la réponse
+        response = client_socket.recv(4096)
+ 
+
         decrypted_response = network_utils.decrypt_message(ENCRYPTION_KEY, response)
+        print(decrypted_response)
         iv, schemas, s_box, payload = network_utils.extract_all_components(decrypted_response)
 
         text_data = bytes(payload[40:])  # Ignorer les headers IP et TCP
+        print(f'text_data en bas')
         try:
             print(f"Réponse déchiffrée : {text_data.decode('utf-8')}")
         except UnicodeDecodeError:

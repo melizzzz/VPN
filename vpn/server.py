@@ -9,11 +9,29 @@ def forward_to_target(dest_ip, dest_port, message):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as forward_socket:
             forward_socket.connect((dest_ip, dest_port))
             forward_socket.sendall(message)
-            response = forward_socket.recv(4096)  # Taille max des réponses
+            response = forward_socket.recv(4096) 
             return response
     except Exception as e:
         print(f"Erreur lors du forwarding : {e}")
         return None
+    
+def extract_ip_and_header(decrypted_msg):
+    tcp_header_size = 20
+    ip_header_size = 20
+    header_size = tcp_header_size + ip_header_size
+
+    decrypted_msg = bytes(decrypted_msg)
+    tcp_header = decrypted_msg[:tcp_header_size]
+    ip_header = decrypted_msg[tcp_header_size:header_size]
+
+    dest_ip = socket.inet_ntoa(ip_header[16:20])  # Destination IP
+    dest_port = int.from_bytes(tcp_header[2:4], "big")  # Destination Port
+    
+    #debbug
+    print(f"Destination IP: {dest_ip}, Destination Port: {dest_port}")
+    print(f'le message recu est : {decrypted_msg[header_size:]}')
+    return dest_ip, dest_port, decrypted_msg[header_size:]
+
 
 def start_tcp_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -43,19 +61,11 @@ def start_tcp_server():
                 # On passe 'schemas' (une liste de schémas) au lieu de 'schema'
                 decrypted_msg = crypt_utils.decrypt(payload, iv, ENCRYPTION_KEY.encode("utf-8"), s_box, schemas, 6)
 
-                # Retirer les 20 octets du header IP, puis décoder en UTF-8
-                ip_header_size = 20
-                tcp_header_size = 20
-                header_size = ip_header_size + tcp_header_size
-                text_data = bytes(decrypted_msg[header_size:])
-                print(text_data)
-                 # Récupérer destination IP/port depuis les headers IP/TCP
-
-                dest_ip = socket.inet_ntoa(payload[16:20]) # Destination IP
-                dest_port = int.from_bytes(payload[22:24], "big")  # Destination Port
+                dest_ip, dest_port, text_data = extract_ip_and_header(decrypted_msg)
 
                 # Forwarder les données vers la cible
                 response = forward_to_target(dest_ip, dest_port, text_data)
+                print(response)
                 if response is None:
                     print("Erreur lors du forwarding")
                     break
@@ -69,7 +79,8 @@ def start_tcp_server():
                 schemas_count = len(schemas)
                 schemas_data = schemas_count.to_bytes(2, 'big')
                 for sc in schemas:
-                    schemas_data += len(sc).to_bytes(2, 'big') + bytes(sc)
+                    print(f"Schéma en cours de traitement : {sc}")
+                    schemas_data += len(sc).to_bytes(2, 'big') + bytes([b if 0 <= b < 256 else 0 for b in sc])
 
                 final_msg = network_utils.encrypt_message(
                     ENCRYPTION_KEY,
